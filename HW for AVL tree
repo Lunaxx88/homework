@@ -1,0 +1,985 @@
+
+#include <iostream> //to use cout
+#include <algorithm> //to use max function such as  i = max(a, b);
+
+using namespace std;
+
+//You need to use the following node class for each node of the AVL tree
+class node {
+public:
+	int value;
+	int height;//this is tree height. Leaf node is 1; empty node (i.e., NIL) is 0
+	node* parent;
+	node* l_child;
+	node* r_child;
+	node() {}
+	node(int i) { value = i; height = 1; parent = l_child = r_child = nullptr; }
+
+};
+
+class avl_tree {
+public:
+	node* root;
+	avl_tree() {
+		root = nullptr;
+	}
+
+	//************************************************************************************
+	//Implement the following member functions
+	void add_node(int i);
+	//if case of a tie, add i to the last of existing nodes with value i in the in-order sequence
+
+	void delete_node(int i);
+	//Delete the node with value i.  in case of multiple nodes with value i, delete the first node with value i in the in-order traveral sequence
+
+
+	void in_order_traversal(node* p); //such as 2 5 9 11 11 14 15 15 ...
+
+	pair<node*, int> height_update(node* p);
+	/*
+	 This function will be invoked by add_node and delete_node.
+	 p points to the first node that we need to check for possible height update.  We then need to check possible height update toward root.
+	 All nodes whose heights need to be updated will be performed in this function.
+	 The function returns a pair.  If no imbalance is detected, the first of the pair will be nullptr; otherwise it will be the address of the action node.
+	 The second of the pair will be 0 if no imbalance is detected; otherwise its value is 1,2,3,4 for RR RL, LL, and LR pattern, respectively.
+	 */
+
+	void L_Rotate(node* p);
+	//p points to the node at which the rotation will be performed.
+
+	void R_Rotate(node* p);
+	//p points to the node at which the rotation will be performed.
+};
+
+void avl_tree::add_node(int i) {
+	/*int h1;
+	 int h2;*/
+	 //node* an = new node();
+
+	if (root == nullptr) {
+		node* p = new node(i);
+		root = p;
+		//root->height = 1;
+		//root->value = i;
+		return;
+	}
+	//else if (root !=nullptr){
+	node* p = new node();
+	p = nullptr;
+	node* addnd = new node(i);
+	//addnd->value = i;
+	node* current = root;
+
+	while (current != nullptr) {
+		p = current;
+		if (i < current->value) {
+			p = current;
+			current = current->l_child;
+		}
+		else {
+			p = current;
+			current = current->r_child;
+		}
+	}
+
+	//addnd->parent = p;
+
+	if (i < p->value) {
+		p->l_child = addnd;
+		addnd->parent = p;
+	}
+	else {
+		p->r_child = addnd;
+		addnd->parent = p;
+	}
+
+	node* up = addnd;
+	while (up) {
+		if (up->l_child == nullptr && up->r_child == nullptr) {
+			up->height = 1;
+		}
+		else if (up->l_child != nullptr && up->r_child == nullptr) {
+			up->height = up->l_child->height + 1;
+		}
+		else if (up->l_child == nullptr && up->r_child != nullptr) {
+			up->height = up->r_child->height + 1;
+		}
+		else if (up->l_child != nullptr && up->r_child != nullptr) {
+			up->height = max(up->r_child->height, up->l_child->height) + 1;
+		}
+		up = up->parent;
+	}
+	//because if add node, this function will return
+	//so when we use below function , we don't need to consider the root node
+	node* an;
+	//pair<node*, int> height_update(node * p);
+	pair < node*, int > pair = height_update(addnd);
+	an = pair.first;
+	int h = pair.second;
+
+	if (h == 0) {
+		return;
+	}
+	else if (h == 1) {//r-r
+		L_Rotate(an);
+	}
+	else if (h == 2) {//r-l
+		R_Rotate(an->r_child);
+		L_Rotate(an);
+	}
+	else if (h == 3) {//l-l
+		R_Rotate(an);
+	}
+	else if (h == 4) {//l-r
+		L_Rotate(an->l_child);
+		R_Rotate(an);
+	}
+}
+
+void avl_tree::delete_node(int i) {
+	if (root == nullptr) return;
+	node* p = nullptr;
+	//node* del = new node(i);
+	node* current = root;
+
+	// traversal the tree to find the node to delete
+	while (current->value != i && current) {
+		p = current;
+		if (i < current->value) {
+			p = current;
+			current = current->l_child;
+		}
+		else if (i > current->value) {
+			p = current;
+			current = current->r_child;
+		}
+		if (current == nullptr) break;
+	}
+
+	if (current == nullptr) return;
+
+	node* pn = current->parent;
+
+	//find the pre and suc of this node
+	node* pre = nullptr;
+	node* prepar = nullptr;
+
+	//just find the pre, do nothing
+	node* tmp = current;
+	if (current->r_child) tmp = current->r_child;
+	else {
+		if(current->l_child) pre =current->l_child;
+	}
+
+	while (tmp) {
+		if (!tmp->r_child && !tmp->l_child) {
+			pre = tmp;
+			prepar = pre->parent;
+			break;
+		}
+		else if (tmp->r_child) {
+			tmp = tmp->r_child;
+			if (!tmp->r_child) {
+				pre = tmp;
+				prepar = pre->parent;
+				break;
+			}
+		}
+		else if (!tmp->r_child && tmp->l_child) {
+			pre = tmp;
+			prepar = pre->parent;
+			break;
+		}
+	}
+
+	//find the suc
+	node* suc = nullptr;
+	node* sucpar = nullptr;
+	node* tp = current;
+	if (current->l_child) tp = current->l_child;
+	else {
+		if (current->r_child) pre = current->r_child;
+	}
+	while (tp) {
+		if (!tp->r_child && !tp->l_child) {
+			suc = tp;
+			sucpar = suc->parent;
+			break;
+		}
+		else if (tp->l_child) {
+			tp = tp->l_child;
+			if (!tp->l_child) {
+				suc = tp;
+				sucpar = suc->parent;
+				break;
+			}
+			//suc = tp->l_child; //the mallest in the left branch
+		}
+		else if(!tp->l_child){
+			suc = tp;
+			sucpar = suc->parent;
+			break;
+		}
+	}
+
+	node* an;
+	int h;
+	//int curheight = 0;
+	//int H;
+	if (pn) {
+		int lheight = pn->l_child == nullptr ? 0 : pn->l_child->height;
+		int rheight = pn->r_child == nullptr ? 0 : pn->r_child->height;
+
+	}
+
+
+	//delete a leaf node
+	if (current->l_child == nullptr && current->r_child == nullptr) {//this is a leaf node
+
+		if (pn->l_child == current) {
+			pn->l_child = nullptr;
+		}
+		else if (pn->r_child == current) {
+			pn->r_child = nullptr;
+		}
+		current = nullptr;
+		delete current;
+
+		node* up = pn;
+		while (up) {
+			if (up->l_child == nullptr && up->r_child == nullptr) {
+				up->height = 1;
+			}
+			else if (up->l_child != nullptr && up->r_child == nullptr) {
+				up->height = up->l_child->height + 1;
+			}
+			else if (up->l_child == nullptr && up->r_child != nullptr) {
+				up->height = up->r_child->height + 1;
+			}
+			else if (up->l_child != nullptr && up->r_child != nullptr) {
+				up->height = max(up->r_child->height, up->l_child->height) + 1;
+			}
+			up = up->parent;
+		}
+
+		while (pn) {
+			pair < node*, int > pair = height_update(pn);
+			an = pair.first;
+			h = pair.second;
+			if (h == 0) {
+				return;
+			}
+			else if (h == 1) {//r-r
+				L_Rotate(an);
+			}
+			else if (h == 2) {//r-l
+				R_Rotate(an->r_child);
+				L_Rotate(an);
+			}
+			else if (h == 3) {//l-l
+				R_Rotate(an);
+			}
+			else if (h == 4) {//l-r
+				L_Rotate(an->l_child);
+				R_Rotate(an);
+			}
+			pn = an->parent;
+		}
+	}
+
+	//delete parent of a only child leaf node
+	else if (current->l_child == nullptr && current->r_child != nullptr && !current->r_child->r_child) {
+		node* curchild;
+		curchild = current->r_child;
+		if (current == root) {
+			current = nullptr;
+			root = curchild;
+		}
+		else if (pn == root) {
+			current = nullptr;
+			root->r_child = curchild;
+		}
+		else if (pn) {
+			if (pn->l_child == current) {
+				pn->l_child = curchild;
+				curchild->parent = pn;
+				current = nullptr;
+			}
+			if (pn->r_child == current) {
+				pn->r_child = curchild;
+				curchild->parent = pn;
+				current = nullptr;
+			}
+		}
+
+		node* up = curchild;
+		while (up) {
+			if (up->l_child == nullptr && up->r_child == nullptr) {
+				up->height = 1;
+			}
+			else if (up->l_child != nullptr && up->r_child == nullptr) {
+				up->height = up->l_child->height + 1;
+			}
+			else if (up->l_child == nullptr && up->r_child != nullptr) {
+				up->height = up->r_child->height + 1;
+			}
+			else if (up->l_child != nullptr && up->r_child != nullptr) {
+				up->height = max(up->r_child->height, up->l_child->height) + 1;
+			}
+			up = up->parent;
+		}
+
+		while (curchild) {
+			pair < node*, int > pair = height_update(curchild);
+			an = pair.first;
+			h = pair.second;
+
+			if (h == 0) {
+				return;
+			}
+			else if (h == 1) {//r-r
+				L_Rotate(an);
+			}
+			else if (h == 2) {//r-l
+				R_Rotate(an->r_child);
+				L_Rotate(an);
+			}
+			else if (h == 3) {//l-l
+				R_Rotate(an);
+			}
+			else if (h == 4) {//l-r
+				L_Rotate(an->l_child);
+				R_Rotate(an);
+			}
+			curchild = an->parent;
+		}
+	}
+
+	//delete parent of a only child leaf node
+	else if (current->l_child && !current->r_child && !current->l_child->l_child) {
+		node* curchild;
+		curchild = current->l_child;
+		if (current == root) {
+			root = curchild;
+			current = nullptr;
+			delete current;
+		}
+		else if (pn == root) {
+			root->l_child = curchild;
+			curchild->parent = root;
+			current = nullptr;
+			delete current;
+		}
+		else if (pn) {
+			if (pn->l_child == current) {
+				pn->l_child = curchild;
+				curchild->parent = pn;
+				current = nullptr;
+				delete current;
+			}
+			if (pn->r_child == current) {
+				current->parent->r_child = curchild;
+				curchild->parent = current->parent;
+				current = nullptr;
+				delete current;
+			}
+		}//finish delete action
+
+		node* up = curchild;
+		while (up) {
+			if (up->l_child == nullptr && up->r_child == nullptr) {
+				up->height = 1;
+			}
+			else if (up->l_child != nullptr && up->r_child == nullptr) {
+				up->height = up->l_child->height + 1;
+			}
+			else if (up->l_child == nullptr && up->r_child != nullptr) {
+				up->height = up->r_child->height + 1;
+			}
+			else if (up->l_child != nullptr && up->r_child != nullptr) {
+				up->height = max(up->r_child->height, up->l_child->height) + 1;
+			}
+			up = up->parent;
+		}
+
+		while (curchild) {
+			pair < node*, int > pair = height_update(curchild);
+			an = pair.first;
+			h = pair.second;
+			if (h == 0) {
+				return;
+			}
+			else if (h == 1) {//r-r
+				L_Rotate(an);
+			}
+			else if (h == 2) {//r-l
+				R_Rotate(an->r_child);
+				L_Rotate(an);
+			}
+			else if (h == 3) {//l-l
+				R_Rotate(an);
+			}
+			else if (h == 4) {//l-r
+				L_Rotate(an->l_child);
+				R_Rotate(an);
+			}
+			curchild = an->parent;
+		}
+
+	}
+
+	//for other cases
+	else {
+		//find the higher branch
+		//decide the predecessor and successor
+		int LH = current->l_child == nullptr ? 0 : current->l_child->height;
+		int RH = current->r_child == nullptr ? 0 : current->r_child->height;
+
+		if (LH >= RH) {//choose left branch choose pre
+			if (pn) {
+				if (current == pre->parent) {
+					/*prepar = pn;*/
+					node* cur = current->r_child;
+					if (pn->l_child == current || pn->r_child == current) {
+						if (pn->l_child == current) {
+							pre->parent = pn;
+							pn->l_child = pre;
+						}
+						else if (pn->r_child == current) {
+							pre->parent = pn;
+							pn->r_child = pre;
+						}
+
+						if (pre->l_child) pre->parent->l_child = pre->l_child;
+						if (cur) {
+							cur->parent = pre;
+							pre->r_child = cur;
+						}
+						current = nullptr;
+						delete current;
+					}
+				}
+				else if (current != pre->parent) {
+					node* cl = current->l_child;
+					node* cr = current->r_child;
+					// pn = current->parent
+					//prepar = pre->parent;
+					if (pn->l_child == current || pn->r_child == current) {
+						if (pn->l_child == current) {
+							pn->l_child = pre;
+							pre->parent = pn;
+						}
+						else if (pn->r_child == current) {
+							pn->r_child = pre;
+							pre->parent = pn;
+						}
+
+						if (cl) {
+							pre->l_child = cl;
+							cl->parent = pre;
+						}
+						if (cr) {
+							pre->r_child = cr;
+							cr->parent = pre;
+						}
+						current = nullptr;
+						delete current;
+					}
+				}
+
+				prepar = pre->parent;
+				node* up = pre;
+				while (up) {
+					if (up->l_child == nullptr && up->r_child == nullptr) {
+						up->height = 1;
+					}
+					else if (up->l_child != nullptr && up->r_child == nullptr) {
+						up->height = up->l_child->height + 1;
+					}
+					else if (up->l_child == nullptr && up->r_child != nullptr) {
+						up->height = up->r_child->height + 1;
+					}
+					else if (up->l_child != nullptr && up->r_child != nullptr) {
+						up->height = max(up->r_child->height, up->l_child->height) + 1;
+					}
+					up = up->parent;
+				}
+
+				while (prepar) {
+					pair < node*, int > pair = height_update(prepar);
+					an = pair.first;
+					h = pair.second;
+					if (h == 0) {
+						return;
+					}
+					else if (h == 1) {//r-r
+						L_Rotate(an);
+					}
+					else if (h == 2) {//r-l
+						R_Rotate(an->r_child);
+						L_Rotate(an);
+					}
+					else if (h == 3) {//l-l
+						R_Rotate(an);
+					}
+					else if (h == 4) {//l-r
+						L_Rotate(an->l_child);
+						R_Rotate(an);
+					}
+					prepar = an->parent;
+				}
+
+			}
+
+			else if (pn == nullptr) {// current = root
+				/*node* rr = current->r_child;
+				node* rl = current->l_child;*/
+				current->value = pre->value;
+				if (pre->l_child) {
+					pre->parent->l_child = pre->l_child;
+					pre->l_child->parent = current;
+				}
+				if (pre->r_child) pre->parent->r_child = nullptr;
+				prepar = pre->parent;
+				pre = nullptr;
+				//cout << pre << current;
+
+			//prepar = pre->parent;
+				node* up = prepar;
+				while (up) {
+					if (up->l_child == nullptr && up->r_child == nullptr) {
+						up->height = 1;
+					}
+					else if (up->l_child != nullptr && up->r_child == nullptr) {
+						up->height = up->l_child->height + 1;
+					}
+					else if (up->l_child == nullptr && up->r_child != nullptr) {
+						up->height = up->r_child->height + 1;
+					}
+					else if (up->l_child != nullptr && up->r_child != nullptr) {
+						up->height = max(up->r_child->height, up->l_child->height) + 1;
+					}
+					up = up->parent;
+				}
+
+				while (prepar) {
+					pair < node*, int > pair = height_update(prepar);
+					an = pair.first;
+					h = pair.second;
+					if (h == 0) {
+						return;
+					}
+					else if (h == 1) {//r-r
+						L_Rotate(an);
+					}
+					else if (h == 2) {//r-l
+						R_Rotate(an->r_child);
+						L_Rotate(an);
+					}
+					else if (h == 3) {//l-l
+						R_Rotate(an);
+					}
+					else if (h == 4) {//l-r
+						L_Rotate(an->l_child);
+						R_Rotate(an);
+					}
+					prepar = an->parent;
+				}
+
+			}
+
+		}
+		//*******************************************************************************************//
+
+		if (LH < RH) {//choose left branch choose pre
+			if (pn) {
+				if (current == suc->parent) {
+					node* cur = current->r_child;
+					if (pn->l_child == current || pn->r_child == current) {
+						if (pn->l_child == current) {
+							suc->parent = pn;
+							pn->l_child = suc;
+						}
+
+						else if (pn->r_child == current) {
+							suc->parent = pn;
+							pn->r_child = suc;
+						}
+
+						if (suc->r_child) suc->parent->r_child = suc->r_child;
+
+						if (cur) {
+							cur->parent = suc;
+							suc->r_child = cur;
+						}
+						current = nullptr;
+						delete current;
+					}
+				}
+				else if (current != suc->parent) {
+					node* cl = current->l_child;
+					node* cr = current->r_child;
+					if (pn->l_child == current || pn->r_child == current) {
+						if (pn->l_child == current) {
+							pn->l_child = suc;
+							suc->parent = pn;
+						}
+						else if (pn->r_child == current) {
+							pn->r_child = suc;
+							suc->parent = pn;
+						}
+
+						if (cl) {
+							suc->l_child = cl;
+							cl->parent = suc;
+						}
+						if (cr) {
+							suc->r_child = cr;
+							cr->parent = suc;
+						}
+						current = nullptr;
+						delete current;
+					}
+				}
+					prepar = suc->parent;
+					node* up = suc;
+
+					while (up) {
+						if (up->l_child == nullptr && up->r_child == nullptr) {
+							up->height = 1;
+						}
+						else if (up->l_child != nullptr && up->r_child == nullptr) {
+							up->height = up->l_child->height + 1;
+						}
+						else if (up->l_child == nullptr && up->r_child != nullptr) {
+							up->height = up->r_child->height + 1;
+						}
+						else if (up->l_child != nullptr && up->r_child != nullptr) {
+							up->height = max(up->r_child->height, up->l_child->height) + 1;
+						}
+						up = up->parent;
+					}
+
+					while (sucpar)
+					{
+						pair < node*, int > pair = height_update(sucpar);
+						an = pair.first;
+						h = pair.second;
+						if (h == 0) {
+							return;
+						}
+						else if (h == 1) {//r-r
+							L_Rotate(an);
+						}
+						else if (h == 2) {//r-l
+							R_Rotate(an->r_child);
+							L_Rotate(an);
+						}
+						else if (h == 3) {//l-l
+							R_Rotate(an);
+						}
+						else if (h == 4) {//l-r
+							L_Rotate(an->l_child);
+							R_Rotate(an);
+						}
+						sucpar = an->parent;
+					}
+				}
+	
+
+		else if (pn == nullptr) {// current = root
+				/*node* rr = current->r_child;
+				node* rl = current->l_child;*/
+				current->value = suc->value;
+				if (suc->r_child) {
+					suc->parent->r_child = suc->r_child;
+					suc->r_child->parent = current;
+				}
+				if (suc->l_child) suc->parent->l_child = nullptr;
+				prepar = suc->parent;
+				suc = nullptr;
+
+				node* up = sucpar;
+				while (up) {
+					if (up->l_child == nullptr && up->r_child == nullptr) {
+						up->height = 1;
+					}
+					else if (up->l_child != nullptr && up->r_child == nullptr) {
+						up->height = up->l_child->height + 1;
+					}
+					else if (up->l_child == nullptr && up->r_child != nullptr) {
+						up->height = up->r_child->height + 1;
+					}
+					else if (up->l_child != nullptr && up->r_child != nullptr) {
+						up->height = max(up->r_child->height, up->l_child->height) + 1;
+					}
+					up = up->parent;
+				}
+
+				while (sucpar) {
+					pair < node*, int > pair = height_update(sucpar);
+					an = pair.first;
+					h = pair.second;
+					if (h == 0) {
+						return;
+					}
+					else if (h == 1) {//r-r
+						L_Rotate(an);
+					}
+					else if (h == 2) {//r-l
+						R_Rotate(an->r_child);
+						L_Rotate(an);
+					}
+					else if (h == 3) {//l-l
+						R_Rotate(an);
+					}
+					else if (h == 4) {//l-r
+						L_Rotate(an->l_child);
+						R_Rotate(an);
+					}
+					sucpar = an->parent;
+				}
+
+			}
+		}
+
+	}
+}
+
+
+void avl_tree::in_order_traversal(node* p) {
+	if (!p) return;
+	in_order_traversal(p->l_child);
+	/*if (p->parent)cout  <<"( , " << p->value  <<" "<<p->height <<")"<< ", parent " << p->parent->value <<  endl;
+	 else {
+	 cout << p->value << " , height" << p->height<<"  ,parent = no" << endl;
+	 }*/
+	cout << "(" << p->value << "," << p->height << ")";
+	/*if (p->l_child) cout << "p=" << p->value << "lchild" << p->l_child->value; else cout << "p=" << p->value << "lchild=0" << endl;
+	 if (p->r_child) cout << "p=" << p->value << "rchild" << p->r_child->value; else cout << "p=" << p->value << "rchild=0" << endl;*/
+	in_order_traversal(p->r_child);
+}
+
+void avl_tree::L_Rotate(node* p) {
+	node* temp;
+	node* tparent;
+	tparent = p->parent;
+	temp = p->r_child;
+
+	if (p->parent == nullptr) {
+		root = temp;
+	}
+	else {
+		if (tparent->l_child == p) {
+			tparent->l_child = temp;
+		}
+		else if (tparent->r_child == p) {
+			tparent->r_child = temp;
+		}
+	}
+	temp->parent = tparent;
+
+	p->r_child = temp->l_child;
+	if (temp->l_child) temp->l_child->parent = p;
+
+	temp->l_child = p;
+	p->parent = temp;
+
+	//in-order traversal the tree
+	while (p) {
+		if (p->l_child == nullptr && p->r_child == nullptr) {
+			p->height = 1;
+		}
+		else if (p->l_child != nullptr && p->r_child == nullptr) {
+			p->height = p->l_child->height + 1;
+		}
+		else if (p->l_child == nullptr && p->r_child != nullptr) {
+			p->height = p->r_child->height + 1;
+		}
+		else if (p->l_child != nullptr && p->r_child != nullptr) {
+			p->height = max(p->r_child->height, p->l_child->height) + 1;
+		}
+		p = p->parent;
+	}
+}
+
+void avl_tree::R_Rotate(node* p) {
+	node* temp;
+	node* tparent;
+	tparent = p->parent;
+	temp = p->l_child;
+
+	if (tparent == nullptr) {
+		root = temp;
+	}
+	else {
+		if (tparent->l_child == p) {
+			tparent->l_child = temp;
+		}
+		else if (tparent->r_child == p) {
+			tparent->r_child = temp;
+		}
+	}
+	temp->parent = tparent;
+	//temp = p->l_child;
+
+	p->l_child = temp->r_child;
+	if (temp->r_child) temp->r_child->parent = p;
+
+	temp->r_child = p;
+	p->parent = temp;
+	//temp->parent = tparent;
+
+
+	while (p) {
+		if (p->l_child == nullptr && p->r_child == nullptr) {
+			p->height = 1;
+		}
+		else if (p->l_child != nullptr && p->r_child == nullptr) {
+			p->height = p->l_child->height + 1;
+		}
+		else if (p->l_child == nullptr && p->r_child != nullptr) {
+			p->height = p->r_child->height + 1;
+		}
+		else if (p->l_child != nullptr && p->r_child != nullptr) {
+			p->height = max(p->r_child->height, p->l_child->height) + 1;
+		}
+		p = p->parent;
+	}
+}
+
+pair<node*, int> avl_tree::height_update(node* p) {
+	/*
+	 This function will be invoked by add_node and delete_node.
+	 p points to the first node that we need to check for possible height update.  We then need to check possible height update toward root.
+	 All nodes whose heights need to be updated will be performed in this function.
+	 The function returns a pair.  If no imbalance is detected, the first of the pair will be nullptr; otherwise it will be the address of the action node.
+	 The second of the pair will be 0 if no imbalance is detected; otherwise its value is 1,2,3,4 for RR RL, LL, and LR pattern, respectively.
+	 */
+
+	 //node* par = new node();
+	 //int var = p->value;
+	int lheight;
+	int rheight;
+
+	while (p != nullptr) {
+		lheight = p->l_child == nullptr ? 0 : p->l_child->height;
+		rheight = p->r_child == nullptr ? 0 : p->r_child->height;
+		p->height = max(lheight, rheight) + 1;
+		if (lheight - rheight >= 2 || rheight - lheight >= 2) {
+			//lchild is higher, l pattern
+			if (lheight > rheight) {// p->lchild !=null
+				if (p->l_child->l_child && p->l_child->r_child) {
+					if (p->l_child->l_child->height >= p->l_child->r_child->height) {
+						return { p, 3 };// L-L pattern
+					}
+					else if (p->l_child->l_child->height < p->l_child->r_child->height) {
+						return { p, 4 };//L-R
+					}
+				}
+				if (!p->l_child->l_child && p->l_child->r_child) {//L-R
+					return { p, 4 };
+				}
+				if (p->l_child->l_child && !p->l_child->r_child) {//L-L
+					return { p, 3 };
+				}
+			}
+
+			if (lheight < rheight) {// p->lchild !=null
+				if (p->r_child->l_child && p->r_child->r_child) {
+					if (p->r_child->r_child->height >= p->r_child->l_child->height) {
+						return { p, 1 };// R-R pattern
+					}
+					else if (p->r_child->l_child->height < p->r_child->r_child->height) {
+						return { p, 2 };//R-L
+					}
+				}
+				if (!p->r_child->l_child && p->r_child->r_child) {//r-R
+					return { p, 1 };
+				}
+				if (p->r_child->l_child && !p->r_child->r_child) {////R-L
+					return { p, 2 };
+				}
+			}
+		}
+		p = p->parent;
+	}
+	return { nullptr, 0 };
+}
+
+
+int main() {
+	//Different test cases will be used during grading.
+	/*avl_tree t1;
+	 t1.add_node(45);
+	 t1.in_order_traversal(t1.root);
+	 t1.delete_node(45);
+	 t1.in_order_traversal(t1.root);
+	 t1.add_node(50);
+	 t1.add_node(46);
+	 t1.add_node(30);
+	 t1.add_node(34);
+	 t1.in_order_traversal(t1.root);
+	 t1.delete_node(48);
+	 t1.in_order_traversal(t1.root);*/
+
+
+	//avl_tree t2;
+	//t2.add_node(85);
+	////t2.in_order_traversal(t2.root);
+	////t2.delete_node(45);
+	//t2.add_node(65);
+	//t2.add_node(100);
+	//t2.add_node(55);
+	//t2.add_node(40);
+	//t2.add_node(70);
+	////t2.delete_node(55);
+	//t2.in_order_traversal(t2.root);
+	//cout << endl;
+	////t2.delete_node(85);
+	//t2.delete_node(65);
+	//cout << endl;
+	//t2.in_order_traversal(t2.root);
+
+	avl_tree t2;
+	t2.add_node(100);
+	//t2.in_order_traversal(t2.root);
+	t2.add_node(50);
+	t2.add_node(200);
+	t2.add_node(45);
+	t2.add_node(70);
+	t2.add_node(150);
+	t2.add_node(300);
+	t2.add_node(80);
+	t2.add_node(140);
+	t2.add_node(250);
+	t2.add_node(350);
+	t2.add_node(400);
+	t2.in_order_traversal(t2.root);
+	cout << endl;
+	t2.delete_node(45);
+	t2.in_order_traversal(t2.root);
+	cout << endl;
+	t2.delete_node(300);
+	t2.in_order_traversal(t2.root);
+
+	getchar();
+	getchar();
+	return 0;
+}
+
+//The following is an example showing how to return a pair.
+/*
+ #include <iostream>
+ using namespace std;
+
+ pair<int *, int> f1(){
+ return { new int {10}, 10 };
+ }
+ int main() {
+ cout << *f1().first << " " << f1().second << endl;
+ getchar();
+ getchar();
+ return 0;
+ }
+ */
