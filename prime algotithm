@@ -1,0 +1,228 @@
+
+#include <iostream>
+#include <fstream>
+#include <vector>
+#include <string>
+
+using namespace std;
+
+class n_node { //stand for neighbor_node
+public:
+	int id;  //neighbor id
+	int weight; //edge weight
+	//Do your own constructor(s)
+	n_node() {};
+	n_node(int id, int weight) {
+		this->id = id;
+		this->weight = weight;
+	};
+};
+
+class rt_node {
+public:
+	bool is_visited; //true if visited; else false
+	int cost; //path cost
+	int from; //from node
+	int h_pos;//the positon of this node in heap
+	// Do your own constructor(s)
+	rt_node() {}
+	rt_node(bool a, int b, int c, int d) {
+		this->is_visited = a;
+		this->cost = b;
+		this->from = c;
+		this->h_pos = d;
+	}
+};
+
+
+class h_node {
+public:
+	int id;//node id
+	int cost; //cost to this node from source
+	//Do your own constructor(s)
+	h_node(int a, int b) {
+		this->id = a;
+		this->cost = b;
+	}
+
+	h_node() {}
+
+	h_node(h_node* p) {
+		this->id = p->id;
+		this->cost = p->cost;
+	}
+
+	bool operator<(const h_node hd)
+	{
+		if (this->cost < hd.cost)
+			return true;
+		return false;
+	}
+
+	bool operator==(const h_node hd)
+	{
+		if (this->id == hd.id && this->cost == hd.cost)
+			return true;
+		return false;
+	}
+};
+
+class Djj {
+public:
+	int source_node;
+	int numberOfnodes;
+	int numberOfedges;
+	int maxindex;
+	Djj() {
+		source_node = 0;
+		numberOfnodes = 0;
+		numberOfedges = 0;
+		maxindex = 0;
+	};
+	vector<rt_node> Routing_Table;
+	vector<h_node> Heap;
+	vector<vector<n_node>*> graph;
+	void DijAlog();
+	void maintain(int i);
+	//void remove();
+	//void insert(h_node nd);
+};
+
+
+void Djj::maintain(int i) {
+	int Lchild = i * 2 + 1, Rchild = i * 2 + 2;
+	int smallest = i;
+	//	cout << Heap.size() << "" << endl;
+	//compare cost
+	if (Lchild <= maxindex - 1 && Rchild <= maxindex - 1) {
+		if (Heap[Lchild] < Heap[Rchild] && Heap[Lchild].cost <= Heap[i].cost) { smallest = Lchild; }
+		else if (Heap[Rchild] < Heap[Lchild] && Heap[Rchild].cost <=Heap[i].cost) { smallest = Rchild; }
+		else return;
+	}
+
+	else if (Lchild <= maxindex - 1 && Heap[Lchild].cost <= Heap[i].cost) {// transmit the noifficient value
+		// Heap[0] is empty
+		smallest = Lchild;
+	}
+
+	else if (Rchild <= maxindex - 1 && Heap[Rchild].cost <= Heap[i].cost) {
+		smallest = Rchild;
+	}
+	//if (Heap[Rchild].cost < Heap[i].cost)	
+	else  return;
+
+	h_node temp = Heap[i];
+	Heap[i] = Heap[smallest];
+	Heap[smallest] = temp;
+
+}
+
+
+void Djj::DijAlog() {
+	Djj djj;
+
+	ifstream in1("graph1.txt"); // reload the operator
+	in1 >> source_node;
+	in1 >> numberOfnodes;
+	in1 >> numberOfedges;
+	cout << source_node << numberOfnodes << endl;
+
+	for (int i = 0; i < numberOfnodes; i++) {
+		graph.push_back(new vector<n_node>());
+		Routing_Table.push_back(rt_node(false, 9999, 9999, 9999));
+	}
+
+	int from, to, cost;
+	while (!in1.eof()) {
+		in1 >> from;
+		in1 >> to;
+		in1 >> cost;
+		//n_node nd;
+		//nd.id = id;
+		//nd.weight = weight;
+		graph[from]->push_back(n_node(to,cost));
+		graph[to]->push_back(n_node(from, cost));
+	}
+	in1.close();
+	
+	cout<< graph.size();
+	Routing_Table[source_node].cost = 0;
+	Routing_Table[source_node].from = source_node;
+	Routing_Table[source_node].is_visited = true;
+
+	int newnode = source_node;
+	//int curcost = Routing_Table[source_node].cost;
+	Routing_Table[newnode].cost = 0;
+	int overallcost = 0;
+	for (int i = 0; i < numberOfnodes; i++) {// find the unvisited nodes
+		Routing_Table[newnode].is_visited = true;
+		for (n_node nd : *graph[newnode]) {
+			if (Routing_Table[nd.id].cost == 9999) { //this node is not visited
+				//Routing_Table[nd.id].cost = nd.weight + Routing_Table[newnode].cost; //update the weight
+				Routing_Table[nd.id].cost = nd.weight;
+				Routing_Table[nd.id].from = newnode; //update from 
+			}
+
+			//if (Routing_Table[nd.id].cost > Routing_Table[newnode].cost + nd.weight) { //if this node already has a weigt, update the weigt
+			//	Routing_Table[nd.id].cost = Routing_Table[newnode].cost + nd.weight;
+			//	Routing_Table[nd.id].from = newnode;
+			//}
+		}
+
+		maxindex = 0;
+
+		for (int i = 0; i < Routing_Table.size(); i++) {
+			if (Routing_Table[i].is_visited == false && Routing_Table[i].cost != 9999) {
+				//h_node temp = h_node(i, Routing_Table[i].cost);
+				h_node temp;
+				temp.id = i;
+				temp.cost = Routing_Table[i].cost;
+				Heap.push_back(temp);
+				maxindex++;
+				for (int i = (maxindex - 1) / 2; i >= 0; i--) {
+					maintain(i); // Heap size = 0
+					//no need to djj.maintain(1)
+				}
+
+			}
+			else continue;
+		}
+
+		if (maxindex > 0) {
+			newnode = Heap[0].id;
+			cout << Routing_Table[newnode].from<<" " <<newnode << " "<< Routing_Table[newnode].cost <<" "<< endl;
+			overallcost += Routing_Table[newnode].cost;
+
+			h_node temp = Heap[0];
+			Heap[0] = Heap[maxindex - 1];
+			Heap[maxindex - 1] = temp;
+
+			Heap.pop_back();
+
+			/*for (int i = 0; i < maxindex; i++) {
+				Heap.pop_back();
+			}*/
+		}
+	}
+
+	cout << "the overall cost is " << overallcost << " " << endl;
+	/*for (int i = 0; i < numberOfnodes; i++) {
+		cout << "the cost from node" << "" << source_node << "" << "to node" << "" << i << "" << "is" << "" << Routing_Table[i].cost
+			<< "; from node is " << "" << Routing_Table[i].from << endl;
+	}*/
+}
+int main() {
+	Djj dcc;
+	dcc.DijAlog();
+
+	getchar();
+	getchar();
+	return 0;
+
+}
+
+
+
+
+
+
